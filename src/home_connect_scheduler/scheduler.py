@@ -117,12 +117,6 @@ def start_scheduler() -> None:
     ha_id = data.selected_appliance
     scheduler = BlockingScheduler(misfire_grace_time=300)
 
-    # Set up log file
-    from pathlib import Path
-
-    log_path = Path.home() / ".hcs" / "hcs.log"
-    logger.add(str(log_path), rotation="10 MB", retention=3)
-
     for sched in data.schedules:
         if not sched.enabled:
             continue

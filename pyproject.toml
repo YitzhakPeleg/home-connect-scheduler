@@ -22,7 +22,7 @@ dev = [
 ]
 
 [project.scripts]
-hcs = "home_connect_scheduler.cli:app"
+hcs = "home_connect_scheduler.cli:main"
 
 [tool.ruff]
 target-version = "py312"

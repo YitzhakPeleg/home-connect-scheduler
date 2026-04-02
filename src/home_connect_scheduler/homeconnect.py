@@ -46,12 +46,10 @@ class HomeConnectClient:
         logger.info("Refreshing access token")
         resp = await self._client.post(
             f"{settings.api_base_url}/security/oauth/token",
-            data={
-                "grant_type": "refresh_token",
-                "client_id": settings.client_id,
-                "client_secret": settings.client_secret,
-                "refresh_token": tokens.refresh_token,
-            },
+            data=self._token_params(
+                grant_type="refresh_token",
+                refresh_token=tokens.refresh_token,
+            ),
         )
         resp.raise_for_status()
         body = resp.json()
@@ -72,7 +70,7 @@ class HomeConnectClient:
             "client_id": settings.client_id,
             "redirect_uri": settings.redirect_uri,
             "response_type": "code",
-            "scope": "IdentifyAppliance Monitor Control",
+            "scope": "IdentifyAppliance Dishwasher-Monitor",
         }
         return f"{settings.api_base_url}/security/oauth/authorize?{urlencode(params)}"
 
@@ -91,16 +89,28 @@ class HomeConnectClient:
                     self.send_response(200)
                     self.end_headers()
                     self.wfile.write(b"Authorization successful! You can close this tab.")
-                else:
+                elif "error" in qs:
+                    error = qs["error"][0]
+                    desc = qs.get("error_description", [""])[0]
+                    logger.error("OAuth error: {} - {}", error, desc)
                     self.send_response(400)
                     self.end_headers()
-                    self.wfile.write(b"Missing authorization code.")
+                    self.wfile.write(f"Authorization failed: {error} - {desc}".encode())
+                else:
+                    # Ignore favicon and other spurious requests
+                    self.send_response(200)
+                    self.end_headers()
 
             def log_message(self, format: str, *args: Any) -> None:
                 pass
 
         server = HTTPServer((host, port), Handler)
-        thread = Thread(target=server.handle_request, daemon=True)
+
+        def serve_until_code() -> None:
+            while not code_holder:
+                server.handle_request()
+
+        thread = Thread(target=serve_until_code, daemon=True)
         thread.start()
         thread.join(timeout=120)
         server.server_close()
@@ -110,18 +120,29 @@ class HomeConnectClient:
             raise TimeoutError(msg)
         return code_holder[0]
 
+    def _token_params(self, **extra: str) -> dict[str, str]:
+        params = {"client_id": settings.client_id, **extra}
+        if settings.client_secret:
+            params["client_secret"] = settings.client_secret
+        return params
+
     async def exchange_code(self, code: str) -> None:
+        logger.info("Authorization code received: {}", code)
+        token_data = self._token_params(
+            grant_type="authorization_code",
+            redirect_uri=settings.redirect_uri,
+            code=code,
+        )
+        safe_params = {k: v for k, v in token_data.items() if k != "client_secret"}
+        logger.debug("Token request params: {}", safe_params)
         resp = await self._client.post(
             f"{settings.api_base_url}/security/oauth/token",
-            data={
-                "grant_type": "authorization_code",
-                "client_id": settings.client_id,
-                "client_secret": settings.client_secret,
-                "redirect_uri": settings.redirect_uri,
-                "code": code,
-            },
+            data=token_data,
         )
-        resp.raise_for_status()
+        logger.info("Token response ({}): {}", resp.status_code, resp.text)
+        if resp.status_code != 200:
+            logger.error("Token exchange failed ({}): {}", resp.status_code, resp.text)
+            resp.raise_for_status()
         body = resp.json()
         tokens = TokenData(
             access_token=body["access_token"],

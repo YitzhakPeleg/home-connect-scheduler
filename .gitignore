@@ -24,5 +24,8 @@ data.json
 # Plans (tracked via GitHub issues)
 plans/
 
+# Logs
+logs/
+
 # uv
 uv.lock

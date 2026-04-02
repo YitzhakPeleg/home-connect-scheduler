@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 import webbrowser
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -19,8 +22,20 @@ app.add_typer(schedule_app, name="schedule")
 console = Console()
 
 
+def _setup_logging() -> None:
+    logger.remove()
+    logger.add(sys.stderr, level="INFO", backtrace=False, diagnose=False)
+    log_dir = Path("logs")
+    log_dir.mkdir(exist_ok=True)
+    timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
+    logger.add(log_dir / f"hcs_{timestamp}.log", level="DEBUG", rotation="10 MB", retention=10)
+
+
+_setup_logging()
+
+
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 # --- connect ---
@@ -88,6 +103,60 @@ def programs() -> None:
     for p in items:
         table.add_row(p["key"])
     console.print(table)
+
+
+# --- appliance status ---
+
+
+@app.command(name="appliance-status")
+def appliance_status() -> None:
+    """Show live appliance status (operation state, door, active program)."""
+    data = load()
+    if not data.selected_appliance:
+        console.print("[red]No appliance selected. Run 'hcs select <haId>' first.[/red]")
+        raise typer.Exit(1)
+    client = HomeConnectClient()
+
+    status_items = _run(client.get_status(data.selected_appliance))
+    table = Table(title="Appliance Status")
+    table.add_column("Key")
+    table.add_column("Value")
+    for s in status_items:
+        key = s["key"].rsplit(".", 1)[-1]
+        value = str(s["value"]).rsplit(".", 1)[-1]
+        table.add_row(key, value)
+    console.print(table)
+
+    # Show active program if running
+    try:
+        programs = _run(client.list_programs(data.selected_appliance))
+        active = next(
+            (p for p in programs if isinstance(p, dict) and p.get("key")),
+            None,
+        )
+        if active:
+            # Fetch full program details including options
+            headers = _run(client._headers())
+            from home_connect_scheduler.settings import settings
+
+            resp = _run(
+                client._client.get(
+                    f"{settings.api_base_url}/api/homeappliances/{data.selected_appliance}/programs/active",
+                    headers=headers,
+                )
+            )
+            if resp.status_code == 200:
+                prog_data = resp.json().get("data", {})
+                prog_table = Table(title=f"Active Program: {prog_data.get('key', 'unknown')}")
+                prog_table.add_column("Option")
+                prog_table.add_column("Value")
+                prog_table.add_column("Unit")
+                for opt in prog_data.get("options", []):
+                    name = opt["key"].rsplit(".", 1)[-1]
+                    prog_table.add_row(name, str(opt["value"]), opt.get("unit", ""))
+                console.print(prog_table)
+    except Exception:
+        pass
 
 
 # --- schedule commands ---
@@ -224,3 +293,18 @@ def run() -> None:
 
     logger.info("Starting scheduler daemon")
     start_scheduler()
+
+
+def main() -> None:
+    try:
+        app()
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Interrupted.[/yellow]")
+        raise SystemExit(130) from None
+    except typer.Exit:
+        raise
+    except Exception as exc:
+        logger.opt(exception=True).debug("Unhandled error")
+        logger.error("{}", exc)
+        console.print("[red]An unexpected error occurred. Check logs for details.[/red]")
+        raise SystemExit(1) from None
