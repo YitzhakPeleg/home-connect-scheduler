@@ -1,8 +1,9 @@
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
+import pytest
 from typer.testing import CliRunner
 
-from home_connect_scheduler.cli import app
+from home_connect_scheduler.cli import app, main
 from home_connect_scheduler.models import AppData, DayOfWeek, Schedule
 
 runner = CliRunner()
@@ -134,3 +135,119 @@ class TestSelectAppliance:
             assert "BOSCH-123" in result.output
             saved = mock_save.call_args[0][0]
             assert saved.selected_appliance == "BOSCH-123"
+
+
+class TestApplianceStatus:
+    def _mock_client(self, status_items, active_program=None):
+        """Create a mock HomeConnectClient for appliance-status tests."""
+        import httpx
+
+        mock = AsyncMock()
+        mock.get_status.return_value = status_items
+        mock._headers.return_value = {"Authorization": "Bearer test"}
+        mock.close.return_value = None
+
+        if active_program:
+            resp = httpx.Response(200, json={"data": active_program})
+        else:
+            resp = httpx.Response(404)
+        mock._client.get.return_value = resp
+        return mock
+
+    def test_no_appliance_selected(self):
+        p1, p2 = _mock_store()
+        with p1, p2:
+            result = runner.invoke(app, ["appliance-status"])
+            assert result.exit_code == 1
+            assert "No appliance selected" in result.output
+
+    def test_status_only(self):
+        data = AppData(selected_appliance="BOSCH-123")
+        status = [
+            {
+                "key": "BSH.Common.Status.OperationState",
+                "value": "BSH.Common.EnumType.OperationState.Inactive",
+            },
+            {
+                "key": "BSH.Common.Status.DoorState",
+                "value": "BSH.Common.EnumType.DoorState.Closed",
+            },
+        ]
+        mock_client = self._mock_client(status)
+        with (
+            patch("home_connect_scheduler.cli.load", return_value=data),
+            patch("home_connect_scheduler.cli.HomeConnectClient", return_value=mock_client),
+        ):
+            result = runner.invoke(app, ["appliance-status"])
+            assert result.exit_code == 0
+            assert "Inactive" in result.output
+            assert "Closed" in result.output
+
+    def test_with_active_program(self):
+        data = AppData(selected_appliance="BOSCH-123")
+        status = [
+            {
+                "key": "BSH.Common.Status.OperationState",
+                "value": "BSH.Common.EnumType.OperationState.Run",
+            },
+        ]
+        active = {
+            "key": "Dishcare.Dishwasher.Program.Eco50",
+            "options": [
+                {"key": "BSH.Common.Option.ProgramProgress", "value": 42, "unit": "%"},
+                {"key": "BSH.Common.Option.RemainingProgramTime", "value": 7200, "unit": "seconds"},
+                {"key": "Dishcare.Dishwasher.Option.EcoDry", "value": True},
+            ],
+        }
+        mock_client = self._mock_client(status, active)
+        with (
+            patch("home_connect_scheduler.cli.load", return_value=data),
+            patch("home_connect_scheduler.cli.HomeConnectClient", return_value=mock_client),
+        ):
+            result = runner.invoke(app, ["appliance-status"])
+            assert result.exit_code == 0
+            assert "Eco50" in result.output
+            assert "42%" in result.output
+            assert "2h 0m" in result.output
+            assert "True" in result.output
+
+    def test_time_format_minutes_only(self):
+        data = AppData(selected_appliance="BOSCH-123")
+        status = [{"key": "BSH.Common.Status.OperationState", "value": "Run"}]
+        active = {
+            "key": "Program.Quick",
+            "options": [
+                {"key": "BSH.Common.Option.RemainingProgramTime", "value": 1800, "unit": "seconds"},
+            ],
+        }
+        mock_client = self._mock_client(status, active)
+        with (
+            patch("home_connect_scheduler.cli.load", return_value=data),
+            patch("home_connect_scheduler.cli.HomeConnectClient", return_value=mock_client),
+        ):
+            result = runner.invoke(app, ["appliance-status"])
+            assert result.exit_code == 0
+            assert "30m" in result.output
+
+
+class TestMainErrorHandler:
+    def test_unhandled_exception(self):
+        with patch("home_connect_scheduler.cli.app", side_effect=RuntimeError("boom")):
+            with pytest.raises(SystemExit) as exc_info:
+                main()
+            assert exc_info.value.code == 1
+
+    def test_keyboard_interrupt(self):
+        with patch("home_connect_scheduler.cli.app", side_effect=KeyboardInterrupt):
+            with pytest.raises(SystemExit) as exc_info:
+                main()
+            assert exc_info.value.code == 130
+
+    def test_typer_exit_passes_through(self):
+        import typer
+
+        with patch("home_connect_scheduler.cli.app", side_effect=typer.Exit(0)):
+            try:
+                main()
+            except typer.Exit as e:
+                assert e.exit_code == 0

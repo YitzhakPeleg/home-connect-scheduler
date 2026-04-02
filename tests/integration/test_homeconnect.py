@@ -170,6 +170,58 @@ class TestStartProgram:
         await client.close()
 
 
+class TestGetStatus:
+    @pytest.mark.asyncio
+    async def test_success(self, mock_api, stored_tokens):
+        status = [
+            {
+                "key": "BSH.Common.Status.OperationState",
+                "value": "BSH.Common.EnumType.OperationState.Run",
+            },
+            {
+                "key": "BSH.Common.Status.DoorState",
+                "value": "BSH.Common.EnumType.DoorState.Closed",
+            },
+        ]
+        mock_api.get("/api/homeappliances/BOSCH-123/status").mock(
+            return_value=httpx.Response(200, json={"data": {"status": status}})
+        )
+
+        client = HomeConnectClient()
+        result = await client.get_status("BOSCH-123")
+        await client.close()
+
+        assert len(result) == 2
+        assert result[0]["key"] == "BSH.Common.Status.OperationState"
+
+
+class TestTokenParams:
+    @pytest.mark.asyncio
+    async def test_includes_secret_when_set(self, stored_tokens):
+        from unittest.mock import patch
+
+        with patch("home_connect_scheduler.homeconnect.settings") as mock_settings:
+            mock_settings.client_id = "test-id"
+            mock_settings.client_secret = "test-secret"
+            client = HomeConnectClient()
+            params = client._token_params(grant_type="authorization_code")
+            assert params["client_secret"] == "test-secret"
+            assert params["client_id"] == "test-id"
+            await client.close()
+
+    @pytest.mark.asyncio
+    async def test_omits_secret_when_empty(self, stored_tokens):
+        from unittest.mock import patch
+
+        with patch("home_connect_scheduler.homeconnect.settings") as mock_settings:
+            mock_settings.client_id = "test-id"
+            mock_settings.client_secret = ""
+            client = HomeConnectClient()
+            params = client._token_params(grant_type="authorization_code")
+            assert "client_secret" not in params
+            await client.close()
+
+
 class TestListPrograms:
     @pytest.mark.asyncio
     async def test_success(self, mock_api, stored_tokens):
