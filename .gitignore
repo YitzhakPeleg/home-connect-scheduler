@@ -23,3 +23,6 @@ data.json
 
 # Plans (tracked via GitHub issues)
 plans/
+
+# uv
+uv.lock
