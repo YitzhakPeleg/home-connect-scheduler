@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+
+# Environment
+.env
+
+# Data
+data.json
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Plans (tracked via GitHub issues)
+plans/
