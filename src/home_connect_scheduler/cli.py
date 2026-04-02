@@ -115,9 +115,25 @@ def appliance_status() -> None:
     if not data.selected_appliance:
         console.print("[red]No appliance selected. Run 'hcs select <haId>' first.[/red]")
         raise typer.Exit(1)
-    client = HomeConnectClient()
 
-    status_items = _run(client.get_status(data.selected_appliance))
+    async def _fetch():
+        from home_connect_scheduler.settings import settings
+
+        client = HomeConnectClient()
+        try:
+            status = await client.get_status(data.selected_appliance)
+            headers = await client._headers()
+            resp = await client._client.get(
+                f"{settings.api_base_url}/api/homeappliances/{data.selected_appliance}/programs/active",
+                headers=headers,
+            )
+            active = resp.json().get("data") if resp.status_code == 200 else None
+            return status, active
+        finally:
+            await client.close()
+
+    status_items, active_program = _run(_fetch())
+
     table = Table(title="Appliance Status")
     table.add_column("Key")
     table.add_column("Value")
@@ -127,36 +143,25 @@ def appliance_status() -> None:
         table.add_row(key, value)
     console.print(table)
 
-    # Show active program if running
-    try:
-        programs = _run(client.list_programs(data.selected_appliance))
-        active = next(
-            (p for p in programs if isinstance(p, dict) and p.get("key")),
-            None,
-        )
-        if active:
-            # Fetch full program details including options
-            headers = _run(client._headers())
-            from home_connect_scheduler.settings import settings
-
-            resp = _run(
-                client._client.get(
-                    f"{settings.api_base_url}/api/homeappliances/{data.selected_appliance}/programs/active",
-                    headers=headers,
-                )
-            )
-            if resp.status_code == 200:
-                prog_data = resp.json().get("data", {})
-                prog_table = Table(title=f"Active Program: {prog_data.get('key', 'unknown')}")
-                prog_table.add_column("Option")
-                prog_table.add_column("Value")
-                prog_table.add_column("Unit")
-                for opt in prog_data.get("options", []):
-                    name = opt["key"].rsplit(".", 1)[-1]
-                    prog_table.add_row(name, str(opt["value"]), opt.get("unit", ""))
-                console.print(prog_table)
-    except Exception:
-        pass
+    if active_program:
+        program_name = active_program.get("key", "unknown").rsplit(".", 1)[-1]
+        prog_table = Table(title=f"Active Program: {program_name}")
+        prog_table.add_column("Option")
+        prog_table.add_column("Value")
+        for opt in active_program.get("options", []):
+            name = opt["key"].rsplit(".", 1)[-1]
+            value = opt["value"]
+            unit = opt.get("unit", "")
+            if unit == "seconds" and isinstance(value, int):
+                hours, remainder = divmod(value, 3600)
+                minutes, _ = divmod(remainder, 60)
+                display = f"{hours}h {minutes}m" if hours else f"{minutes}m"
+            elif unit == "%":
+                display = f"{value}%"
+            else:
+                display = str(value)
+            prog_table.add_row(name, display)
+        console.print(prog_table)
 
 
 # --- schedule commands ---
