@@ -1,0 +1,44 @@
+[project]
+name = "home-connect-scheduler"
+version = "0.1.0"
+description = "HomeConnect appliance scheduler — schedule dishwasher runs via the HomeConnect API"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx==0.28.1",
+    "pydantic-settings==2.13.1",
+    "apscheduler==3.11.2",
+    "typer==0.24.1",
+    "orjson==3.11.8",
+    "loguru==0.7.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "respx",
+    "ty",
+    "ruff",
+]
+
+[project.scripts]
+hcs = "home_connect_scheduler.cli:main"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/home_connect_scheduler"]
