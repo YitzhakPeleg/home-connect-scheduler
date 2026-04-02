@@ -1,4 +1,4 @@
-.PHONY: install lint format typecheck test check run connect appliances programs status
+.PHONY: install lint format typecheck test check run connect appliances programs status appliance-status
 
 install:
 	uv sync --all-extras
@@ -31,3 +31,6 @@ programs:
 
 status:
 	uv run hcs status
+
+appliance-status:
+	uv run hcs appliance-status
