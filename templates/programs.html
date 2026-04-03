@@ -37,15 +37,9 @@
     <thead>
         <tr>
             <th>{{ sort_link("name", "Program") }}</th>
-            {% if has_duration %}
             <th>{{ sort_link("duration", "Duration") }}</th>
-            {% endif %}
-            {% if has_energy %}
             <th>{{ sort_link("energy", "Energy") }}</th>
-            {% endif %}
-            {% if has_water %}
             <th>{{ sort_link("water", "Water") }}</th>
-            {% endif %}
             <th>{{ sort_link("options", "Options") }}</th>
         </tr>
     </thead>
@@ -54,41 +48,37 @@
         <tr>
             <td>
                 <strong>{{ p.name }}</strong>
-                <br><small><code>{{ p.key }}</code></small>
+                <br><small><code>{{ p.key.split(".")[-1] }}</code></small>
             </td>
-            {% if has_duration %}
             <td>
-                {% if p.duration_min is not none %}
-                    {% set min_m = p.duration_min // 60 %}
-                    {% if p.duration_max is not none %}
-                        {% set max_m = p.duration_max // 60 %}
-                        {{ min_m }}-{{ max_m }} min
-                    {% else %}
-                        {{ min_m }} min
-                    {% endif %}
+                {% if p.duration_range %}
+                    {{ p.duration_range }}
+                {% elif p.duration is not none %}
+                    {% set h = p.duration // 60 %}
+                    {% set m = p.duration % 60 %}
+                    {% if h %}{{ h }}h {% endif %}{{ m }}min
                 {% else %}
                 —
                 {% endif %}
             </td>
-            {% endif %}
-            {% if has_energy %}
             <td>
-                {% if p.energy is not none %}
-                    {{ p.energy }}%
+                {% if p.energy_range %}
+                    {{ p.energy_range }} kWh
+                {% elif p.energy is not none %}
+                    {{ p.energy }} kWh
                 {% else %}
                 —
                 {% endif %}
             </td>
-            {% endif %}
-            {% if has_water %}
             <td>
-                {% if p.water is not none %}
-                    {{ p.water }}%
+                {% if p.water_range %}
+                    {{ p.water_range }} l
+                {% elif p.water is not none %}
+                    {{ p.water }} l
                 {% else %}
                 —
                 {% endif %}
             </td>
-            {% endif %}
             <td>
                 {% if p.options %}
                 <details>

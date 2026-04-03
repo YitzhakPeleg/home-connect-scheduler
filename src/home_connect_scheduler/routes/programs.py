@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import re
+from pathlib import Path
 from typing import Any
 
 import inflection
+import yaml
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from loguru import logger
@@ -18,6 +20,13 @@ router = APIRouter(prefix="/programs", tags=["programs"])
 # Options to hide from the display (present on every program, just noise)
 HIDDEN_OPTIONS = {"BSH.Common.Option.StartInRelative", "BSH.Common.Option.FinishInRelative"}
 
+# Load static program specs (duration, energy) from YAML
+_SPECS_PATH = Path(__file__).resolve().parent.parent / "program_specs.yaml"
+_PROGRAM_SPECS: dict[str, dict[str, Any]] = {}
+if _SPECS_PATH.exists():
+    with open(_SPECS_PATH) as f:
+        _PROGRAM_SPECS = yaml.safe_load(f) or {}
+
 
 def _humanize_key(key: str) -> str:
     """Extract last segment and convert CamelCase to human-readable."""
@@ -26,13 +35,18 @@ def _humanize_key(key: str) -> str:
     return inflection.titleize(segment)
 
 
+def _get_spec(program_key: str) -> dict[str, Any] | None:
+    """Look up static specs by matching the last segment of the program key."""
+    last_segment = program_key.rsplit(".", 1)[-1]
+    return _PROGRAM_SPECS.get(last_segment)
+
+
 def _format_option(opt: dict[str, Any]) -> dict[str, str]:
     """Format a single option for display."""
     opt_key = opt.get("key", "")
     opt_type = opt.get("type", "")
     constraints = opt.get("constraints", {})
 
-    # Build a human-readable description of the option
     parts: list[str] = []
 
     if opt_type:
@@ -76,43 +90,51 @@ def _extract_program_info(details: dict[str, Any]) -> dict[str, Any]:
     """Extract structured info from a program details response."""
     key = details.get("key", "")
     options = details.get("options", [])
+    spec = _get_spec(key)
 
     visible_options = [
         _format_option(opt) for opt in options if opt.get("key", "") not in HIDDEN_OPTIONS
     ]
 
-    # Try to extract duration/energy/water from options if they exist
-    duration_min = None
-    duration_max = None
-    energy = None
-    water = None
+    # Use static specs for duration/energy/water, fall back to API data
+    duration = spec.get("duration") if spec else None
+    duration_range = spec.get("duration_range") if spec else None
+    energy = spec.get("energy") if spec else None
+    energy_range = spec.get("energy_range") if spec else None
+    water = spec.get("water") if spec else None
+    water_range = spec.get("water_range") if spec else None
+    name = spec["name"] if spec else _humanize_key(key)
 
+    # Also check API options as fallback
     for opt in options:
         opt_key = opt.get("key", "").lower()
         constraints = opt.get("constraints", {})
         value = constraints.get("default", opt.get("value"))
 
-        if any(k in opt_key for k in ("duration", "programtime", "finishinrelative")):
-            if "max" in constraints:
-                duration_max = constraints["max"]
+        if duration is None and any(
+            k in opt_key for k in ("duration", "programtime", "finishinrelative")
+        ):
             if "min" in constraints:
-                duration_min = constraints["min"]
+                duration = constraints["min"] // 60
             elif opt.get("unit") == "seconds" and isinstance(value, int | float):
-                duration_min = int(value)
+                duration = int(value) // 60
 
-        if "energy" in opt_key and value is not None:
+        if energy is None and "energy" in opt_key and value is not None:
             energy = value
-        if "water" in opt_key and value is not None:
+
+        if water is None and "water" in opt_key and value is not None:
             water = value
 
     return {
         "key": key,
-        "name": _humanize_key(key),
+        "name": name,
         "options": visible_options,
-        "duration_min": duration_min,
-        "duration_max": duration_max,
+        "duration": duration,
+        "duration_range": duration_range,
         "energy": energy,
+        "energy_range": energy_range,
         "water": water,
+        "water_range": water_range,
     }
 
 
@@ -139,8 +161,6 @@ async def list_programs(request: Request) -> HTMLResponse:
         programs = []
         for i, details in enumerate(details_list):
             if isinstance(details, Exception):
-                # Details unavailable (e.g. program not startable while another runs)
-                # Still show the program with just its name
                 logger.debug("Program details unavailable: {}", details)
                 programs.append(_extract_program_info({"key": program_list[i]["key"]}))
             else:
@@ -151,18 +171,13 @@ async def list_programs(request: Request) -> HTMLResponse:
     finally:
         await client.close()
 
-    # Check which columns have any data
-    has_duration = any(p["duration_min"] is not None for p in programs)
-    has_energy = any(p["energy"] is not None for p in programs)
-    has_water = any(p["water"] is not None for p in programs)
-
     # Sort
     sort_by = request.query_params.get("sort", "name")
     reverse = request.query_params.get("dir", "asc") == "desc"
 
     sort_keys = {
         "name": lambda p: p["name"].lower(),
-        "duration": lambda p: p["duration_min"] if p["duration_min"] is not None else float("inf"),
+        "duration": lambda p: p["duration"] if p["duration"] is not None else float("inf"),
         "energy": lambda p: p["energy"] if p["energy"] is not None else float("inf"),
         "water": lambda p: p["water"] if p["water"] is not None else float("inf"),
         "options": lambda p: len(p["options"]),
@@ -177,8 +192,5 @@ async def list_programs(request: Request) -> HTMLResponse:
             "programs": programs,
             "sort": sort_by,
             "sort_dir": "desc" if reverse else "asc",
-            "has_duration": has_duration,
-            "has_energy": has_energy,
-            "has_water": has_water,
         },
     )

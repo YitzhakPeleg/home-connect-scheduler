@@ -1,0 +1,106 @@
+# Program specifications for Bosch dishwasher (SMS6ZDW48E or similar).
+# Data sourced from the Bosch product data sheet (EN 60436) and Home Connect app.
+#
+# Duration in minutes, energy in kWh, water in litres.
+# Key: last segment of the Home Connect API program key.
+# Fields with _range show variable programs (e.g. Auto adjusts to load).
+
+Intensiv70:
+  name: Intensive 70°C
+  duration: 133          # 2:10-2:15 midpoint
+  duration_range: "2:10-2:15"
+  energy: 1.325
+  energy_range: "1.30-1.35"
+  water: 10.5
+  water_range: "9.0-12.0"
+
+Auto2:
+  name: Auto 45-65°C
+  duration: 135          # 1:45-2:45 midpoint
+  duration_range: "1:45-2:45"
+  energy: 1.0
+  energy_range: "0.75-1.25"
+  water: 9.5
+  water_range: "5.0-14.0"
+
+Eco50:
+  name: Eco 50°C
+  duration: 275          # 4:35
+  energy: 0.836
+  water: 6.7
+
+Silence50:
+  name: Silence 50°C
+  duration: 217          # 3:37
+  energy: 0.950
+  water: 9.7
+
+Express6501:
+  name: Express 65°C 1h
+  duration: 60           # 1:00
+  energy: 1.200
+  water: 10.0
+
+MachineCare:
+  name: Machine Care
+  duration: 75           # 1:15
+  energy: 1.350
+  water: 10.0
+
+Favourite:
+  name: Favourite
+  duration: 15           # 0:15-0:15
+  duration_range: "0:15-0:15"
+  energy: 0.05
+  energy_range: "0.050-0.050"
+  water: 4.0
+  water_range: "3.0-4.0"
+
+# From Home Connect app (not in data sheet)
+IntensivePlus70:
+  name: Intensive Plus 70°C
+  duration: 155          # 2:35
+  energy: 1.4
+  water: 15.0
+
+Quick45:
+  name: Quick Wash 45°C
+  duration: 35
+  energy: 0.7
+  water: 9.0
+
+Glass:
+  name: Glass
+  duration: 105          # 1:45
+  energy: 0.7
+  water: 11.0
+
+MixedLoad:
+  name: Mixed Load
+  duration: 135          # 2:15
+  energy: 1.1
+  water: 13.0
+
+Short60:
+  name: Short 60°C
+  duration: 89           # 1:29
+  energy: 1.1
+  water: 10.0
+
+PreRinse:
+  name: Pre-Rinse
+  duration: 14
+  energy: 0.05
+  water: 4.0
+
+NightWash:
+  name: Night Wash
+  duration: 240          # 4:00
+  energy: 0.7
+  water: 10.0
+
+Normal65:
+  name: Normal 65°C
+  duration: 120          # 2:00
+  energy: 1.2
+  water: 12.0
