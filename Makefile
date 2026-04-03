@@ -1,4 +1,4 @@
-.PHONY: install lint format typecheck test check run connect appliances programs status appliance-status
+.PHONY: install lint format typecheck test check run connect appliances programs status appliance-status web
 
 install:
 	uv sync --all-extras
@@ -34,3 +34,6 @@ status:
 
 appliance-status:
 	uv run hcs appliance-status
+
+web:
+	uv run uvicorn home_connect_scheduler.webapp:app --reload --port 8000

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import AsyncIterator
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
 from typing import Any
@@ -198,3 +199,33 @@ class HomeConnectClient:
         )
         resp.raise_for_status()
         logger.info("Started program {}", program_key)
+
+    # --- Events (SSE) ---
+
+    async def stream_events(self, ha_id: str) -> AsyncIterator[dict[str, str]]:
+        """Stream Server-Sent Events from the Home Connect API.
+
+        Yields dicts with keys: 'event', 'data', 'id' (when present).
+        """
+        headers = await self._headers()
+        headers["Accept"] = "text/event-stream"
+        async with self._client.stream(
+            "GET",
+            f"{settings.api_base_url}/api/homeappliances/{ha_id}/events",
+            headers=headers,
+            timeout=None,
+        ) as response:
+            response.raise_for_status()
+            event: dict[str, str] = {}
+            async for line in response.aiter_lines():
+                if not line:
+                    if event:
+                        yield event
+                        event = {}
+                    continue
+                if line.startswith("event:"):
+                    event["event"] = line[6:].strip()
+                elif line.startswith("data:"):
+                    event["data"] = line[5:].strip()
+                elif line.startswith("id:"):
+                    event["id"] = line[3:].strip()

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% set active_page = "settings" %}
+
+{% block title %}Settings — HCS{% endblock %}
+
+{% block content %}
+<h1>Settings</h1>
+
+<article>
+    <header>Connection</header>
+    <table>
+        <tr>
+            <td><strong>Status</strong></td>
+            <td>{{ "Connected" if connected else "Not connected" }}</td>
+        </tr>
+        <tr>
+            <td><strong>API</strong></td>
+            <td>{{ api_base_url }}</td>
+        </tr>
+        <tr>
+            <td><strong>Simulator</strong></td>
+            <td>{{ "Yes" if use_simulator else "No" }}</td>
+        </tr>
+        <tr>
+            <td><strong>Redirect URI</strong></td>
+            <td><code>{{ redirect_uri }}</code></td>
+        </tr>
+        <tr>
+            <td><strong>Selected Appliance</strong></td>
+            <td>{{ selected_appliance or "None" }}</td>
+        </tr>
+    </table>
+    {% if connected %}
+    <a href="/auth/login" role="button" class="outline">Reconnect</a>
+    {% else %}
+    <a href="/auth/login" role="button">Connect</a>
+    {% endif %}
+</article>
+{% endblock %}
