@@ -72,12 +72,12 @@ def test_programs_list_with_specs():
     # Program names from static specs
     assert "Quick Wash 45" in resp.text
     assert "Glass" in resp.text
-    # Duration, energy, and water from static specs
-    assert "35min" in resp.text  # Quick45
-    assert "0.7 kWh" in resp.text
-    assert "9.0 l" in resp.text  # Quick45 water
-    assert "1h 45min" in resp.text  # Glass
-    assert "11.0 l" in resp.text  # Glass water
+    # Duration, energy, and water from static specs (units in column headers)
+    assert "0:35" in resp.text  # Quick45 duration
+    assert "0.7" in resp.text   # Quick45 energy
+    assert "9.0" in resp.text   # Quick45 water
+    assert "1:45" in resp.text  # Glass duration
+    assert "11.0" in resp.text  # Glass water
     # Options should be visible
     assert "Silence On Demand" in resp.text
     assert "Brilliance Dry" in resp.text
@@ -107,8 +107,8 @@ def test_programs_sort_by_energy_desc():
     mock_cls.stop()
 
     assert resp.status_code == 200
-    # Both have 0.7 kWh so just verify page renders
-    assert "0.7 kWh" in resp.text
+    # Both have 0.7 energy so just verify page renders
+    assert "0.7" in resp.text
 
 
 def test_programs_graceful_when_details_fail():
@@ -130,5 +130,5 @@ def test_programs_graceful_when_details_fail():
     assert resp.status_code == 200
     # Should still show the program with specs from YAML
     assert "Quick Wash 45" in resp.text
-    assert "35min" in resp.text
-    assert "9.0 l" in resp.text
+    assert "0:35" in resp.text
+    assert "9.0" in resp.text

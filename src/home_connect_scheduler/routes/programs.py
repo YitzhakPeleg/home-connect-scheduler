@@ -98,11 +98,8 @@ def _extract_program_info(details: dict[str, Any]) -> dict[str, Any]:
 
     # Use static specs for duration/energy/water, fall back to API data
     duration = spec.get("duration") if spec else None
-    duration_range = spec.get("duration_range") if spec else None
     energy = spec.get("energy") if spec else None
-    energy_range = spec.get("energy_range") if spec else None
     water = spec.get("water") if spec else None
-    water_range = spec.get("water_range") if spec else None
     name = spec["name"] if spec else _humanize_key(key)
 
     # Also check API options as fallback
@@ -130,11 +127,8 @@ def _extract_program_info(details: dict[str, Any]) -> dict[str, Any]:
         "name": name,
         "options": visible_options,
         "duration": duration,
-        "duration_range": duration_range,
         "energy": energy,
-        "energy_range": energy_range,
         "water": water,
-        "water_range": water_range,
     }
 
 

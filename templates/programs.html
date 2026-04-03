@@ -37,9 +37,9 @@
     <thead>
         <tr>
             <th>{{ sort_link("name", "Program") }}</th>
-            <th>{{ sort_link("duration", "Duration") }}</th>
-            <th>{{ sort_link("energy", "Energy") }}</th>
-            <th>{{ sort_link("water", "Water") }}</th>
+            <th>{{ sort_link("duration", "Duration (h:min)") }}</th>
+            <th>{{ sort_link("energy", "Energy (kWh)") }}</th>
+            <th>{{ sort_link("water", "Water (litres)") }}</th>
             <th>{{ sort_link("options", "Options") }}</th>
         </tr>
     </thead>
@@ -51,30 +51,24 @@
                 <br><small><code>{{ p.key.split(".")[-1] }}</code></small>
             </td>
             <td>
-                {% if p.duration_range %}
-                    {{ p.duration_range }}
-                {% elif p.duration is not none %}
+                {% if p.duration is not none %}
                     {% set h = p.duration // 60 %}
                     {% set m = p.duration % 60 %}
-                    {% if h %}{{ h }}h {% endif %}{{ m }}min
+                    {% if h %}{{ h }}:{{ "%02d" | format(m) }}{% else %}0:{{ "%02d" | format(m) }}{% endif %}
                 {% else %}
                 —
                 {% endif %}
             </td>
             <td>
-                {% if p.energy_range %}
-                    {{ p.energy_range }} kWh
-                {% elif p.energy is not none %}
-                    {{ p.energy }} kWh
+                {% if p.energy is not none %}
+                    {{ p.energy }}
                 {% else %}
                 —
                 {% endif %}
             </td>
             <td>
-                {% if p.water_range %}
-                    {{ p.water_range }} l
-                {% elif p.water is not none %}
-                    {{ p.water }} l
+                {% if p.water is not none %}
+                    {{ p.water }}
                 {% else %}
                 —
                 {% endif %}
