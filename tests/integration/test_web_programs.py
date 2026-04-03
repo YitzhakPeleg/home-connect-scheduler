@@ -16,32 +16,25 @@ PROGRAM_LIST = [
     {"key": "Dishcare.Dishwasher.Program.Quick45"},
 ]
 
+# Matches real API shape: type + constraints with default/liveupdate
 PROGRAM_DETAILS_ECO50 = {
     "key": "Dishcare.Dishwasher.Program.Eco50",
     "options": [
         {
-            "key": "BSH.Common.Option.FinishInRelative",
-            "value": 0,
+            "key": "BSH.Common.Option.StartInRelative",
+            "type": "Int",
             "unit": "seconds",
             "constraints": {"min": 0, "max": 86340},
         },
         {
-            "key": "BSH.Common.Option.EnergyForecast",
-            "value": 20,
-            "unit": "%",
-        },
-        {
-            "key": "BSH.Common.Option.WaterForecast",
-            "value": 40,
-            "unit": "%",
-        },
-        {
             "key": "Dishcare.Dishwasher.Option.IntensivZone",
-            "value": False,
+            "type": "Boolean",
+            "constraints": {"default": False, "liveupdate": True},
         },
         {
             "key": "Dishcare.Dishwasher.Option.BrillianceDry",
-            "value": True,
+            "type": "Boolean",
+            "constraints": {"default": True, "liveupdate": True},
         },
     ],
 }
@@ -50,34 +43,54 @@ PROGRAM_DETAILS_QUICK45 = {
     "key": "Dishcare.Dishwasher.Program.Quick45",
     "options": [
         {
+            "key": "Dishcare.Dishwasher.Option.SilenceOnDemand",
+            "type": "Boolean",
+            "constraints": {"default": False, "liveupdate": True},
+        },
+    ],
+}
+
+# Test data with energy/water/duration for sort tests
+PROGRAM_DETAILS_WITH_FORECASTS = {
+    "key": "Dishcare.Dishwasher.Program.Auto2",
+    "options": [
+        {
             "key": "BSH.Common.Option.Duration",
-            "value": 2700,
+            "type": "Int",
             "unit": "seconds",
-            "constraints": {"min": 2700, "max": 2700},
+            "value": 3600,
+            "constraints": {"min": 1800, "max": 7200},
         },
         {
             "key": "BSH.Common.Option.EnergyForecast",
-            "value": 60,
+            "type": "Int",
             "unit": "%",
+            "value": 50,
         },
         {
             "key": "BSH.Common.Option.WaterForecast",
-            "value": 70,
+            "type": "Int",
             "unit": "%",
+            "value": 60,
         },
     ],
 }
 
 
-def _mock_client():
+def _mock_client(details_map=None):
+    if details_map is None:
+        details_map = {
+            "Eco50": PROGRAM_DETAILS_ECO50,
+            "Quick45": PROGRAM_DETAILS_QUICK45,
+        }
     mock_cls = patch("home_connect_scheduler.routes.programs.HomeConnectClient")
     mock = mock_cls.start()
     instance = mock.return_value
-    instance.list_programs = AsyncMock(return_value=PROGRAM_LIST)
+    instance.list_programs = AsyncMock(
+        return_value=[{"key": d["key"]} for d in details_map.values()]
+    )
     instance.get_program_details = AsyncMock(
-        side_effect=lambda ha_id, key: (
-            PROGRAM_DETAILS_ECO50 if "Eco50" in key else PROGRAM_DETAILS_QUICK45
-        )
+        side_effect=lambda ha_id, key: next(v for k, v in details_map.items() if k in key)
     )
     instance.close = AsyncMock()
     return mock_cls
@@ -100,50 +113,54 @@ def test_programs_list():
     assert resp.status_code == 200
     assert "Eco 50" in resp.text
     assert "Quick 45" in resp.text
-    # Check options are present
+    # Options should be visible (not hidden)
     assert "Intensiv Zone" in resp.text
     assert "Brilliance Dry" in resp.text
-    # Check energy/water forecasts
-    assert "20%" in resp.text
-    assert "40%" in resp.text
+    assert "Silence On Demand" in resp.text
+    # StartInRelative should be filtered out
+    assert "Start In Relative" not in resp.text
 
 
-def test_programs_sort_by_energy():
+def test_programs_hides_empty_forecast_columns():
+    """When API returns no energy/water/duration, those columns should not appear."""
     data = AppData(tokens=TOKENS, selected_appliance="BOSCH-123")
     mock_cls = _mock_client()
     with patch("home_connect_scheduler.routes.programs.load", return_value=data):
-        resp = client.get("/programs?sort=energy&dir=asc")
+        resp = client.get("/programs")
     mock_cls.stop()
 
     assert resp.status_code == 200
-    # Eco50 (energy=20) should appear before Quick45 (energy=60) in asc order
+    # No programs have duration/energy/water, so those column headers shouldn't appear
+    assert "Duration" not in resp.text
+    assert "Energy" not in resp.text
+    assert "Water" not in resp.text
+
+
+def test_programs_shows_forecast_columns_when_available():
+    """When API returns energy/water/duration, those columns should appear."""
+    data = AppData(tokens=TOKENS, selected_appliance="BOSCH-123")
+    mock_cls = _mock_client({"Auto2": PROGRAM_DETAILS_WITH_FORECASTS})
+    with patch("home_connect_scheduler.routes.programs.load", return_value=data):
+        resp = client.get("/programs")
+    mock_cls.stop()
+
+    assert resp.status_code == 200
+    assert "Duration" in resp.text
+    assert "Energy" in resp.text
+    assert "Water" in resp.text
+    assert "30-120 min" in resp.text  # 1800-7200 seconds
+    assert "50%" in resp.text
+    assert "60%" in resp.text
+
+
+def test_programs_sort_by_name():
+    data = AppData(tokens=TOKENS, selected_appliance="BOSCH-123")
+    mock_cls = _mock_client()
+    with patch("home_connect_scheduler.routes.programs.load", return_value=data):
+        resp = client.get("/programs?sort=name&dir=asc")
+    mock_cls.stop()
+
+    assert resp.status_code == 200
     eco_pos = resp.text.index("Eco 50")
     quick_pos = resp.text.index("Quick 45")
     assert eco_pos < quick_pos
-
-
-def test_programs_sort_by_water_desc():
-    data = AppData(tokens=TOKENS, selected_appliance="BOSCH-123")
-    mock_cls = _mock_client()
-    with patch("home_connect_scheduler.routes.programs.load", return_value=data):
-        resp = client.get("/programs?sort=water&dir=desc")
-    mock_cls.stop()
-
-    assert resp.status_code == 200
-    # Quick45 (water=70) should appear before Eco50 (water=40) in desc order
-    quick_pos = resp.text.index("Quick 45")
-    eco_pos = resp.text.index("Eco 50")
-    assert quick_pos < eco_pos
-
-
-def test_programs_sort_by_duration():
-    data = AppData(tokens=TOKENS, selected_appliance="BOSCH-123")
-    mock_cls = _mock_client()
-    with patch("home_connect_scheduler.routes.programs.load", return_value=data):
-        resp = client.get("/programs?sort=duration&dir=asc")
-    mock_cls.stop()
-
-    assert resp.status_code == 200
-    # Quick45 has duration_min=2700, Eco50 has duration from FinishInRelative min=0
-    # Both should render without error
-    assert "Quick 45" in resp.text

@@ -15,45 +15,61 @@ from home_connect_scheduler.web_deps import templates
 
 router = APIRouter(prefix="/programs", tags=["programs"])
 
+# Options to hide from the display (present on every program, just noise)
+HIDDEN_OPTIONS = {"BSH.Common.Option.StartInRelative", "BSH.Common.Option.FinishInRelative"}
+
 
 def _humanize_key(key: str) -> str:
-    """Extract last segment and convert CamelCase to human-readable.
-
-    Also inserts spaces before numbers: Eco50 -> Eco 50, Quick45 -> Quick 45.
-    """
+    """Extract last segment and convert CamelCase to human-readable."""
     segment = key.rsplit(".", 1)[-1]
-    # Insert space between letters and digits: "Eco50" -> "Eco 50"
     segment = re.sub(r"([a-zA-Z])(\d)", r"\1 \2", segment)
     return inflection.titleize(segment)
 
 
-def _format_option_value(opt: dict[str, Any]) -> str:
-    """Format an option's value/constraints for display."""
-    unit = opt.get("unit", "")
+def _format_option(opt: dict[str, Any]) -> dict[str, str]:
+    """Format a single option for display."""
+    opt_key = opt.get("key", "")
+    opt_type = opt.get("type", "")
     constraints = opt.get("constraints", {})
 
-    if "allowedvalues" in constraints:
-        values = [v.rsplit(".", 1)[-1] for v in constraints["allowedvalues"]]
-        return ", ".join(values)
+    # Build a human-readable description of the option
+    parts: list[str] = []
+
+    if opt_type:
+        parts.append(opt_type)
+
+    if "default" in constraints:
+        default = constraints["default"]
+        if isinstance(default, bool):
+            parts.append(f"default: {'Yes' if default else 'No'}")
+        else:
+            val = default
+            unit = opt.get("unit", "")
+            if unit == "seconds" and isinstance(val, int | float):
+                minutes = int(val) // 60
+                parts.append(f"default: {minutes} min")
+            else:
+                parts.append(f"default: {val}")
 
     if "min" in constraints and "max" in constraints:
         mn, mx = constraints["min"], constraints["max"]
+        unit = opt.get("unit", "")
         if unit == "seconds":
-            return f"{mn // 60}-{mx // 60} min"
-        if unit == "%":
-            return f"{mn}-{mx}%"
-        return f"{mn}-{mx} {unit}".strip()
+            parts.append(f"range: {mn // 60}-{mx // 60} min")
+        elif unit == "%":
+            parts.append(f"range: {mn}-{mx}%")
+        else:
+            parts.append(f"range: {mn}-{mx}")
 
-    val = opt.get("value")
-    if isinstance(val, bool):
-        return "Yes / No"
-    if unit == "seconds" and isinstance(val, int | float):
-        return f"{int(val) // 60} min"
-    if unit == "%":
-        return f"{val}%"
-    if val is not None:
-        return str(val)
-    return ""
+    if "allowedvalues" in constraints:
+        values = [v.rsplit(".", 1)[-1] for v in constraints["allowedvalues"]]
+        parts.append(", ".join(values))
+
+    return {
+        "key": opt_key,
+        "name": _humanize_key(opt_key),
+        "display": " | ".join(parts) if parts else "",
+    }
 
 
 def _extract_program_info(details: dict[str, Any]) -> dict[str, Any]:
@@ -61,56 +77,43 @@ def _extract_program_info(details: dict[str, Any]) -> dict[str, Any]:
     key = details.get("key", "")
     options = details.get("options", [])
 
-    info: dict[str, Any] = {
-        "key": key,
-        "name": _humanize_key(key),
-        "options": [],
-        "duration_min": None,
-        "duration_max": None,
-        "energy": None,
-        "water": None,
-    }
+    visible_options = [
+        _format_option(opt) for opt in options if opt.get("key", "") not in HIDDEN_OPTIONS
+    ]
 
-    # Options to hide from the display (present on every program, not useful)
-    hidden_options = {"BSH.Common.Option.StartInRelative", "BSH.Common.Option.FinishInRelative"}
+    # Try to extract duration/energy/water from options if they exist
+    duration_min = None
+    duration_max = None
+    energy = None
+    water = None
 
     for opt in options:
-        opt_key = opt.get("key", "")
-        opt_name = _humanize_key(opt_key)
-        opt_display = _format_option_value(opt)
+        opt_key = opt.get("key", "").lower()
         constraints = opt.get("constraints", {})
+        value = constraints.get("default", opt.get("value"))
 
-        # Skip universal/noise options from the displayed list
-        if opt_key not in hidden_options:
-            info["options"].append(
-                {
-                    "key": opt_key,
-                    "name": opt_name,
-                    "display": opt_display,
-                }
-            )
-
-        # Extract well-known values for sorting columns
-        lower_key = opt_key.lower()
-
-        # Duration: Duration, EstimatedTotalProgramTime, FinishInRelative, RemainingProgramTime
-        if any(k in lower_key for k in ("duration", "programtime", "finishinrelative")):
+        if any(k in opt_key for k in ("duration", "programtime", "finishinrelative")):
             if "max" in constraints:
-                info["duration_max"] = constraints["max"]
+                duration_max = constraints["max"]
             if "min" in constraints:
-                info["duration_min"] = constraints["min"]
-            elif opt.get("unit") == "seconds" and isinstance(opt.get("value"), int | float):
-                info["duration_min"] = int(opt["value"])
+                duration_min = constraints["min"]
+            elif opt.get("unit") == "seconds" and isinstance(value, int | float):
+                duration_min = int(value)
 
-        # Energy: EnergyForecast or anything with "energy"
-        if "energy" in lower_key:
-            info["energy"] = opt.get("value")
+        if "energy" in opt_key and value is not None:
+            energy = value
+        if "water" in opt_key and value is not None:
+            water = value
 
-        # Water: WaterForecast or anything with "water"
-        if "water" in lower_key:
-            info["water"] = opt.get("value")
-
-    return info
+    return {
+        "key": key,
+        "name": _humanize_key(key),
+        "options": visible_options,
+        "duration_min": duration_min,
+        "duration_max": duration_max,
+        "energy": energy,
+        "water": water,
+    }
 
 
 @router.get("", response_class=HTMLResponse)
@@ -145,6 +148,11 @@ async def list_programs(request: Request) -> HTMLResponse:
     finally:
         await client.close()
 
+    # Check which columns have any data
+    has_duration = any(p["duration_min"] is not None for p in programs)
+    has_energy = any(p["energy"] is not None for p in programs)
+    has_water = any(p["water"] is not None for p in programs)
+
     # Sort
     sort_by = request.query_params.get("sort", "name")
     reverse = request.query_params.get("dir", "asc") == "desc"
@@ -166,5 +174,8 @@ async def list_programs(request: Request) -> HTMLResponse:
             "programs": programs,
             "sort": sort_by,
             "sort_dir": "desc" if reverse else "asc",
+            "has_duration": has_duration,
+            "has_energy": has_energy,
+            "has_water": has_water,
         },
     )
