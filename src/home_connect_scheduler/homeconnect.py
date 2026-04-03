@@ -71,7 +71,7 @@ class HomeConnectClient:
             "client_id": settings.client_id,
             "redirect_uri": settings.redirect_uri,
             "response_type": "code",
-            "scope": "IdentifyAppliance Dishwasher-Monitor",
+            "scope": "IdentifyAppliance Dishwasher-Monitor Dishwasher-Control",
         }
         return f"{settings.api_base_url}/security/oauth/authorize?{urlencode(params)}"
 
