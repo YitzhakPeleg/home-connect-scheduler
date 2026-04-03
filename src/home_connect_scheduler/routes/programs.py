@@ -20,12 +20,15 @@ router = APIRouter(prefix="/programs", tags=["programs"])
 # Options to hide from the display (present on every program, just noise)
 HIDDEN_OPTIONS = {"BSH.Common.Option.StartInRelative", "BSH.Common.Option.FinishInRelative"}
 
-# Load static program specs (duration, energy) from YAML
+# Load static program specs (duration, energy, water) from YAML
 _SPECS_PATH = Path(__file__).resolve().parent.parent / "program_specs.yaml"
-_PROGRAM_SPECS: dict[str, dict[str, Any]] = {}
-if _SPECS_PATH.exists():
-    with open(_SPECS_PATH) as f:
-        _PROGRAM_SPECS = yaml.safe_load(f) or {}
+
+
+def _load_specs() -> dict[str, dict[str, Any]]:
+    if _SPECS_PATH.exists():
+        with open(_SPECS_PATH) as f:
+            return yaml.safe_load(f) or {}
+    return {}
 
 
 def _humanize_key(key: str) -> str:
@@ -38,7 +41,7 @@ def _humanize_key(key: str) -> str:
 def _get_spec(program_key: str) -> dict[str, Any] | None:
     """Look up static specs by matching the last segment of the program key."""
     last_segment = program_key.rsplit(".", 1)[-1]
-    return _PROGRAM_SPECS.get(last_segment)
+    return _load_specs().get(last_segment)
 
 
 def _format_option(opt: dict[str, Any]) -> dict[str, str]:
