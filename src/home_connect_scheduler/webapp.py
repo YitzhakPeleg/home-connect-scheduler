@@ -15,6 +15,7 @@ from home_connect_scheduler.routes import (
     dashboard,
     events,
     history,
+    programs,
     schedules,
     settings,
 )
@@ -38,6 +39,7 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.include_router(auth.router)
 app.include_router(dashboard.router)
 app.include_router(appliances.router)
+app.include_router(programs.router)
 app.include_router(schedules.router)
 app.include_router(history.router)
 app.include_router(settings.router)

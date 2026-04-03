@@ -175,6 +175,15 @@ class HomeConnectClient:
         resp.raise_for_status()
         return resp.json()["data"]["programs"]
 
+    async def get_program_details(self, ha_id: str, program_key: str) -> dict[str, Any]:
+        headers = await self._headers()
+        resp = await self._client.get(
+            f"{settings.api_base_url}/api/homeappliances/{ha_id}/programs/available/{program_key}",
+            headers=headers,
+        )
+        resp.raise_for_status()
+        return resp.json()["data"]
+
     async def get_status(self, ha_id: str) -> dict[str, Any]:
         headers = await self._headers()
         resp = await self._client.get(
