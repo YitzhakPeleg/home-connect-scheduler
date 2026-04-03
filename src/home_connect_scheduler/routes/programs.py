@@ -71,23 +71,30 @@ def _extract_program_info(details: dict[str, Any]) -> dict[str, Any]:
         "water": None,
     }
 
+    # Options to hide from the display (present on every program, not useful)
+    hidden_options = {"BSH.Common.Option.StartInRelative", "BSH.Common.Option.FinishInRelative"}
+
     for opt in options:
         opt_key = opt.get("key", "")
         opt_name = _humanize_key(opt_key)
         opt_display = _format_option_value(opt)
         constraints = opt.get("constraints", {})
 
-        info["options"].append(
-            {
-                "key": opt_key,
-                "name": opt_name,
-                "display": opt_display,
-            }
-        )
+        # Skip universal/noise options from the displayed list
+        if opt_key not in hidden_options:
+            info["options"].append(
+                {
+                    "key": opt_key,
+                    "name": opt_name,
+                    "display": opt_display,
+                }
+            )
 
-        # Extract well-known values for sorting
+        # Extract well-known values for sorting columns
         lower_key = opt_key.lower()
-        if "duration" in lower_key or "finishinrelative" in lower_key:
+
+        # Duration: Duration, EstimatedTotalProgramTime, FinishInRelative, RemainingProgramTime
+        if any(k in lower_key for k in ("duration", "programtime", "finishinrelative")):
             if "max" in constraints:
                 info["duration_max"] = constraints["max"]
             if "min" in constraints:
@@ -95,9 +102,12 @@ def _extract_program_info(details: dict[str, Any]) -> dict[str, Any]:
             elif opt.get("unit") == "seconds" and isinstance(opt.get("value"), int | float):
                 info["duration_min"] = int(opt["value"])
 
-        if "energyforecast" in lower_key:
+        # Energy: EnergyForecast or anything with "energy"
+        if "energy" in lower_key:
             info["energy"] = opt.get("value")
-        if "waterforecast" in lower_key:
+
+        # Water: WaterForecast or anything with "water"
+        if "water" in lower_key:
             info["water"] = opt.get("value")
 
     return info

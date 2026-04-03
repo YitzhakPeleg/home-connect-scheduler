@@ -13,6 +13,7 @@ from home_connect_scheduler.routes import (
     appliances,
     auth,
     dashboard,
+    debug,
     events,
     history,
     programs,
@@ -44,6 +45,7 @@ app.include_router(schedules.router)
 app.include_router(history.router)
 app.include_router(settings.router)
 app.include_router(events.router)
+app.include_router(debug.router)
 
 
 @app.get("/", response_class=HTMLResponse)
