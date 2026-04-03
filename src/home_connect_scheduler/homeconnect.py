@@ -167,6 +167,17 @@ class HomeConnectClient:
     # --- Programs ---
 
     async def list_programs(self, ha_id: str) -> list[dict[str, Any]]:
+        """List all programs the appliance supports (even while running)."""
+        headers = await self._headers()
+        resp = await self._client.get(
+            f"{settings.api_base_url}/api/homeappliances/{ha_id}/programs",
+            headers=headers,
+        )
+        resp.raise_for_status()
+        return resp.json()["data"]["programs"]
+
+    async def list_available_programs(self, ha_id: str) -> list[dict[str, Any]]:
+        """List programs that can be started right now."""
         headers = await self._headers()
         resp = await self._client.get(
             f"{settings.api_base_url}/api/homeappliances/{ha_id}/programs/available",

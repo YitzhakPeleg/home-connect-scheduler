@@ -226,7 +226,7 @@ class TestListPrograms:
     @pytest.mark.asyncio
     async def test_success(self, mock_api, stored_tokens):
         programs = [{"key": "Dishcare.Program.Eco50"}, {"key": "Dishcare.Program.Auto2"}]
-        mock_api.get("/api/homeappliances/BOSCH-123/programs/available").mock(
+        mock_api.get("/api/homeappliances/BOSCH-123/programs").mock(
             return_value=httpx.Response(200, json={"data": {"programs": programs}})
         )
 

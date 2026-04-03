@@ -137,11 +137,14 @@ async def list_programs(request: Request) -> HTMLResponse:
         details_list = await asyncio.gather(*tasks, return_exceptions=True)
 
         programs = []
-        for details in details_list:
+        for i, details in enumerate(details_list):
             if isinstance(details, Exception):
-                logger.warning("Failed to fetch program details: {}", details)
-                continue
-            programs.append(_extract_program_info(details))
+                # Details unavailable (e.g. program not startable while another runs)
+                # Still show the program with just its name
+                logger.debug("Program details unavailable: {}", details)
+                programs.append(_extract_program_info({"key": program_list[i]["key"]}))
+            else:
+                programs.append(_extract_program_info(details))
     except Exception as exc:
         logger.error("Failed to fetch programs: {}", exc)
         programs = []
