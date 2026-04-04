@@ -6,7 +6,7 @@
 {% block content %}
 <h1>Run History</h1>
 
-<div hx-get="/history" hx-trigger="every 30s" hx-select="#history-table" hx-target="#history-table" hx-swap="outerHTML">
+<div hx-get="/history" hx-trigger="every 120s" hx-select="#history-table" hx-target="#history-table" hx-swap="outerHTML">
     <div id="history-table">
         {% if run_log %}
         <table>

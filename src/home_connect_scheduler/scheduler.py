@@ -26,8 +26,26 @@ DAY_MAP: dict[DayOfWeek, str] = {
 # Retry config
 MAX_RETRIES_409 = 3
 RETRY_INTERVAL_409 = 120  # seconds
+
+MAX_RETRIES_429 = 5
+RETRY_BASE_429 = 30  # seconds — Home Connect rate limit resets ~every minute
+
 MAX_RETRIES_NETWORK = 3
 NETWORK_BACKOFF_BASE = 2  # seconds
+
+
+def _get_status_code(exc: Exception) -> int | None:
+    return getattr(getattr(exc, "response", None), "status_code", None)
+
+
+def _get_retry_after(exc: Exception) -> int | None:
+    """Extract Retry-After header from httpx response if present."""
+    response = getattr(exc, "response", None)
+    if response is not None:
+        val = response.headers.get("Retry-After")
+        if val and val.isdigit():
+            return int(val)
+    return None
 
 
 def _log_result(schedule: Schedule, success: bool, message: str) -> None:
@@ -43,20 +61,23 @@ def _log_result(schedule: Schedule, success: bool, message: str) -> None:
     save(data)
 
 
+async def _try_start(client: HomeConnectClient, ha_id: str, schedule: Schedule) -> None:
+    options = [opt.model_dump(exclude_none=True) for opt in schedule.options] or None
+    await client.start_program(ha_id, schedule.program, options)
+
+
 async def _execute_schedule_async(schedule: Schedule, ha_id: str) -> None:
     client = HomeConnectClient()
     try:
-        options = [opt.model_dump(exclude_none=True) for opt in schedule.options] or None
-
-        # Retry logic for 409 (appliance not ready)
-        for attempt in range(MAX_RETRIES_409):
+        for attempt in range(max(MAX_RETRIES_409, MAX_RETRIES_429, MAX_RETRIES_NETWORK)):
             try:
-                await client.start_program(ha_id, schedule.program, options)
+                await _try_start(client, ha_id, schedule)
                 _log_result(schedule, success=True, message="Program started")
                 logger.info("Schedule '{}' executed successfully", schedule.name)
                 return
             except Exception as exc:
-                status_code = getattr(getattr(exc, "response", None), "status_code", None)
+                status_code = _get_status_code(exc)
+
                 if status_code == 409:
                     if attempt < MAX_RETRIES_409 - 1:
                         logger.warning(
@@ -74,32 +95,42 @@ async def _execute_schedule_async(schedule: Schedule, ha_id: str) -> None:
                     )
                     logger.error("Schedule '{}' failed: appliance not ready", schedule.name)
                     return
-                raise
 
-    except Exception as exc:
-        # Network errors with exponential backoff
-        last_err = exc
-        for attempt in range(MAX_RETRIES_NETWORK):
-            delay = NETWORK_BACKOFF_BASE * (2**attempt)
-            logger.warning(
-                "Network error ({}), retry {}/{} in {}s",
-                exc,
-                attempt + 1,
-                MAX_RETRIES_NETWORK,
-                delay,
-            )
-            await asyncio.sleep(delay)
-            try:
-                options = [opt.model_dump(exclude_none=True) for opt in schedule.options] or None
-                await client.start_program(ha_id, schedule.program, options)
-                _log_result(schedule, success=True, message="Program started (after retry)")
-                logger.info("Schedule '{}' executed after network retry", schedule.name)
+                if status_code == 429:
+                    retry_after = _get_retry_after(exc) or RETRY_BASE_429 * (2**attempt)
+                    if attempt < MAX_RETRIES_429 - 1:
+                        logger.warning(
+                            "Rate limited (429), retry {}/{} in {}s",
+                            attempt + 1,
+                            MAX_RETRIES_429,
+                            retry_after,
+                        )
+                        await asyncio.sleep(retry_after)
+                        continue
+                    _log_result(
+                        schedule,
+                        success=False,
+                        message=f"Rate limited after {MAX_RETRIES_429} retries",
+                    )
+                    logger.error("Schedule '{}' failed: rate limited", schedule.name)
+                    return
+
+                # Network / other errors
+                if attempt < MAX_RETRIES_NETWORK - 1:
+                    delay = NETWORK_BACKOFF_BASE * (2**attempt)
+                    logger.warning(
+                        "Error ({}), retry {}/{} in {}s",
+                        exc,
+                        attempt + 1,
+                        MAX_RETRIES_NETWORK,
+                        delay,
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+
+                _log_result(schedule, success=False, message=f"Error: {exc}")
+                logger.error("Schedule '{}' failed: {}", schedule.name, exc)
                 return
-            except Exception as retry_exc:
-                last_err = retry_exc
-
-        _log_result(schedule, success=False, message=f"Network error: {last_err}")
-        logger.error("Schedule '{}' failed: {}", schedule.name, last_err)
     finally:
         await client.close()
 
