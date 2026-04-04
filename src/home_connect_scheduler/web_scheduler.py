@@ -54,7 +54,7 @@ def start_web_scheduler() -> None:
 def stop_web_scheduler() -> None:
     global _scheduler
     if _scheduler and _scheduler.running:
-        _scheduler.shutdown(wait=True)
+        _scheduler.shutdown(wait=False)
         _scheduler = None
 
 
