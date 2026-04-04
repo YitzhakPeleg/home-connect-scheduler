@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse
 from loguru import logger
 
 from home_connect_scheduler.homeconnect import HomeConnectClient
+from home_connect_scheduler.settings import settings
 from home_connect_scheduler.store import load
 from home_connect_scheduler.web_deps import templates
 
@@ -22,17 +23,17 @@ async def api_status(request: Request) -> HTMLResponse:
     client = HomeConnectClient()
     try:
         status_items = await client.get_status(data.selected_appliance)
-        # Try to get active program
-        from home_connect_scheduler.settings import settings
 
-        headers = await client._headers()
-        resp = await client._client.get(
-            f"{settings.api_base_url}/api/homeappliances/{data.selected_appliance}/programs/active",
-            headers=headers,
-        )
-        active_program: dict[str, Any] | None = (
-            resp.json().get("data") if resp.status_code == 200 else None
-        )
+        # Try to get active program (404 when no program is running — that's fine)
+        active_program: dict[str, Any] | None = None
+        try:
+            resp = await client._request(
+                "GET",
+                f"{settings.api_base_url}/api/homeappliances/{data.selected_appliance}/programs/active",
+            )
+            active_program = resp.json().get("data")
+        except Exception:
+            pass
     except Exception as exc:
         logger.error("Failed to fetch appliance status: {}", exc)
         return HTMLResponse(f"<p>Failed to fetch appliance status: {exc}</p>")

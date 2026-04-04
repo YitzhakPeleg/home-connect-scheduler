@@ -64,6 +64,26 @@ class HomeConnectClient:
         token = await self._ensure_token()
         return {"Authorization": f"Bearer {token}"}
 
+    async def _request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
+        """Make an API request with automatic 429 retry."""
+        max_retries = 3
+        extra_headers = kwargs.pop("headers", None)
+        for attempt in range(max_retries + 1):
+            headers = extra_headers or await self._headers()
+            resp = await self._client.request(method, url, headers=headers, **kwargs)
+            if resp.status_code != 429 or attempt == max_retries:
+                resp.raise_for_status()
+                return resp
+            retry_after = int(resp.headers.get("Retry-After", 60))
+            logger.warning(
+                "Rate limited (429), waiting {}s (attempt {}/{})",
+                retry_after,
+                attempt + 1,
+                max_retries,
+            )
+            await asyncio.sleep(retry_after)
+        return resp  # unreachable, but keeps type checker happy
+
     # --- OAuth flow ---
 
     def get_auth_url(self) -> str:
@@ -156,68 +176,49 @@ class HomeConnectClient:
     # --- Appliances ---
 
     async def list_appliances(self) -> list[dict[str, Any]]:
-        headers = await self._headers()
-        resp = await self._client.get(
-            f"{settings.api_base_url}/api/homeappliances",
-            headers=headers,
-        )
-        resp.raise_for_status()
+        resp = await self._request("GET", f"{settings.api_base_url}/api/homeappliances")
         return resp.json()["data"]["homeappliances"]
 
     # --- Programs ---
 
     async def list_programs(self, ha_id: str) -> list[dict[str, Any]]:
         """List all programs the appliance supports (even while running)."""
-        headers = await self._headers()
-        resp = await self._client.get(
-            f"{settings.api_base_url}/api/homeappliances/{ha_id}/programs",
-            headers=headers,
+        resp = await self._request(
+            "GET", f"{settings.api_base_url}/api/homeappliances/{ha_id}/programs"
         )
-        resp.raise_for_status()
         return resp.json()["data"]["programs"]
 
     async def list_available_programs(self, ha_id: str) -> list[dict[str, Any]]:
         """List programs that can be started right now."""
-        headers = await self._headers()
-        resp = await self._client.get(
-            f"{settings.api_base_url}/api/homeappliances/{ha_id}/programs/available",
-            headers=headers,
+        resp = await self._request(
+            "GET", f"{settings.api_base_url}/api/homeappliances/{ha_id}/programs/available"
         )
-        resp.raise_for_status()
         return resp.json()["data"]["programs"]
 
     async def get_program_details(self, ha_id: str, program_key: str) -> dict[str, Any]:
-        headers = await self._headers()
-        resp = await self._client.get(
+        resp = await self._request(
+            "GET",
             f"{settings.api_base_url}/api/homeappliances/{ha_id}/programs/available/{program_key}",
-            headers=headers,
         )
-        resp.raise_for_status()
         return resp.json()["data"]
 
     async def get_status(self, ha_id: str) -> dict[str, Any]:
-        headers = await self._headers()
-        resp = await self._client.get(
-            f"{settings.api_base_url}/api/homeappliances/{ha_id}/status",
-            headers=headers,
+        resp = await self._request(
+            "GET", f"{settings.api_base_url}/api/homeappliances/{ha_id}/status"
         )
-        resp.raise_for_status()
         return resp.json()["data"]["status"]
 
     async def start_program(
         self, ha_id: str, program_key: str, options: list[dict[str, Any]] | None = None
     ) -> None:
-        headers = await self._headers()
-        headers["Content-Type"] = "application/json"
         payload: dict[str, Any] = {"data": {"key": program_key}}
         if options:
             payload["data"]["options"] = options
-        resp = await self._client.put(
+        await self._request(
+            "PUT",
             f"{settings.api_base_url}/api/homeappliances/{ha_id}/programs/active",
-            headers=headers,
             json=payload,
         )
-        resp.raise_for_status()
         logger.info("Started program {}", program_key)
 
     # --- Events (SSE) ---
