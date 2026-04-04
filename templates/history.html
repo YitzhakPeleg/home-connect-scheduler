@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% set active_page = "history" %}
+
+{% block title %}Run History — HCS{% endblock %}
+
+{% block content %}
+<h1>Run History</h1>
+
+<button class="outline" hx-get="/history" hx-select="#history-table" hx-target="#history-table" hx-swap="outerHTML">Refresh</button>
+
+<div hx-get="/history" hx-trigger="every 300s" hx-select="#history-table" hx-target="#history-table" hx-swap="outerHTML">
+    <div id="history-table">
+        {% if run_log %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Schedule</th>
+                    <th>Result</th>
+                    <th>Message</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in run_log %}
+                <tr>
+                    <td>{{ r.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+                    <td>{{ r.schedule_name }}</td>
+                    <td>
+                        {% if r.success %}
+                        <ins>Success</ins>
+                        {% else %}
+                        <del>Failed</del>
+                        {% endif %}
+                    </td>
+                    <td>{{ r.message }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No runs recorded yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

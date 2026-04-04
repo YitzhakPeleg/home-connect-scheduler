@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% set active_page = "programs" %}
+
+{% block title %}Programs — HCS{% endblock %}
+
+{% block content %}
+<h1>Programs</h1>
+
+{% if not connected %}
+<article>
+    <p>You need to authenticate first.</p>
+    <a href="/auth/login" role="button">Connect</a>
+</article>
+{% elif not programs %}
+<article>
+    <p>No programs found. Make sure an appliance is <a href="/appliances">selected</a> and the dishwasher is on.</p>
+</article>
+{% else %}
+
+{% macro sort_link(field, label) %}
+{% set next_dir = "desc" if sort == field and sort_dir == "asc" else "asc" %}
+<a href="/programs?sort={{ field }}&dir={{ next_dir }}"
+   hx-get="/programs?sort={{ field }}&dir={{ next_dir }}"
+   hx-target="#programs-content"
+   hx-select="#programs-content"
+   hx-swap="outerHTML"
+   hx-push-url="true">
+    {{ label }}
+    {% if sort == field %}
+        {{ "▲" if sort_dir == "asc" else "▼" }}
+    {% endif %}
+</a>
+{% endmacro %}
+
+<div id="programs-content">
+<table>
+    <thead>
+        <tr>
+            <th>{{ sort_link("name", "Program") }}</th>
+            <th>{{ sort_link("duration", "Duration (h:min)") }}</th>
+            <th>{{ sort_link("energy", "Energy (kWh)") }}</th>
+            <th>{{ sort_link("water", "Water (litres)") }}</th>
+            <th>{{ sort_link("options", "Options") }}</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for p in programs %}
+        <tr>
+            <td>
+                <strong>{{ p.name }}</strong>
+                <br><small><code>{{ p.key.split(".")[-1] }}</code></small>
+            </td>
+            <td>
+                {% if p.duration is not none %}
+                    {% set h = p.duration // 60 %}
+                    {% set m = p.duration % 60 %}
+                    {% if h %}{{ h }}:{{ "%02d" | format(m) }}{% else %}0:{{ "%02d" | format(m) }}{% endif %}
+                {% else %}
+                —
+                {% endif %}
+            </td>
+            <td>
+                {% if p.energy is not none %}
+                    {{ p.energy }}
+                {% else %}
+                —
+                {% endif %}
+            </td>
+            <td>
+                {% if p.water is not none %}
+                    {{ p.water }}
+                {% else %}
+                —
+                {% endif %}
+            </td>
+            <td>
+                {% if p.options %}
+                <details>
+                    <summary>{{ p.options | length }} option{{ "s" if p.options | length != 1 }}</summary>
+                    <table>
+                        {% for opt in p.options %}
+                        <tr>
+                            <td><small><strong>{{ opt.name }}</strong></small></td>
+                            <td><small>{{ opt.display }}</small></td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                </details>
+                {% else %}
+                —
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

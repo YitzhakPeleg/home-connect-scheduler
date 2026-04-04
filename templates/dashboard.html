@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% set active_page = "dashboard" %}
+
+{% block title %}Dashboard — HCS{% endblock %}
+
+{% block content %}
+<h1>Dashboard</h1>
+
+{% if not connected %}
+<article>
+    <header>Not Connected</header>
+    <p>You need to authenticate with Home Connect first.</p>
+    <a href="/auth/login" role="button">Connect Now</a>
+</article>
+{% else %}
+<div class="grid">
+    <article>
+        <header>Connection</header>
+        <p>Authenticated with Home Connect</p>
+    </article>
+    <article>
+        <header>Appliance</header>
+        {% if selected_appliance %}
+        <p>{{ selected_appliance }}</p>
+        {% else %}
+        <p>No appliance selected. <a href="/appliances">Select one</a>.</p>
+        {% endif %}
+    </article>
+</div>
+
+{% if selected_appliance %}
+<button class="outline" hx-get="/api/status" hx-target="#status-card" hx-swap="innerHTML">Refresh Status</button>
+<article id="status-card" hx-get="/api/status" hx-trigger="load, every 300s" hx-swap="innerHTML">
+    <p aria-busy="true">Loading status...</p>
+</article>
+{% endif %}
+
+<h2>Upcoming Schedules</h2>
+{% if schedules %}
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Day</th>
+            <th>Time</th>
+            <th>Program</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for s in schedules if s.enabled %}
+        <tr>
+            <td>{{ s.name }}</td>
+            <td>{{ s.day.value }}</td>
+            <td>{{ s.time }}</td>
+            <td>{{ s.program.split(".")[-1] }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No schedules configured. <a href="/schedules">Add one</a>.</p>
+{% endif %}
+
+{% if run_log %}
+<h2>Recent Runs</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Time</th>
+            <th>Schedule</th>
+            <th>Result</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in run_log | reverse %}
+        <tr>
+            <td>{{ r.timestamp.strftime("%Y-%m-%d %H:%M") }}</td>
+            <td>{{ r.schedule_name }}</td>
+            <td>
+                {% if r.success %}
+                <ins>Success</ins>
+                {% else %}
+                <del>Failed: {{ r.message }}</del>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,30 @@
+<tr id="schedule-{{ s.id }}">
+    <td>{{ s.name }}</td>
+    <td>{{ s.day.value | upper }}</td>
+    <td>{{ s.time }}</td>
+    <td>{{ s.program.split(".")[-1] }}</td>
+    <td>
+        {% if s.enabled %}
+        <ins>On</ins>
+        {% else %}
+        <del>Off</del>
+        {% endif %}
+    </td>
+    <td>
+        <div role="group">
+            <button class="outline"
+                    hx-post="/schedules/{{ s.id }}/toggle"
+                    hx-target="#schedule-{{ s.id }}"
+                    hx-swap="outerHTML">
+                {{ "Disable" if s.enabled else "Enable" }}
+            </button>
+            <button class="outline secondary"
+                    hx-delete="/schedules/{{ s.id }}"
+                    hx-target="#schedule-{{ s.id }}"
+                    hx-swap="outerHTML"
+                    hx-confirm="Delete schedule '{{ s.name }}'?">
+                Delete
+            </button>
+        </div>
+    </td>
+</tr>

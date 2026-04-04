@@ -1,0 +1,15 @@
+.status-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    vertical-align: middle;
+}
+
+.status-dot.connected {
+    background-color: #2ecc40;
+}
+
+.status-dot.disconnected {
+    background-color: #ff4136;
+}

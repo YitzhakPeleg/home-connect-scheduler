@@ -1,0 +1,37 @@
+{% if appliances %}
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Brand</th>
+            <th>haId</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for a in appliances %}
+        <tr>
+            <td>{{ a.get("name", "") }}</td>
+            <td>{{ a["type"] }}</td>
+            <td>{{ a.get("brand", "") }}</td>
+            <td><code>{{ a["haId"] }}</code></td>
+            <td>
+                {% if selected == a["haId"] %}
+                <mark>Selected</mark>
+                {% else %}
+                <button class="outline"
+                        hx-post="/appliances/{{ a['haId'] }}/select"
+                        hx-target="#appliance-list"
+                        hx-swap="innerHTML">
+                    Select
+                </button>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No appliances found. Make sure your dishwasher is connected to WiFi.</p>
+{% endif %}

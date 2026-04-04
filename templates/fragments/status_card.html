@@ -1,0 +1,42 @@
+<h3>Appliance Status</h3>
+<table>
+    <thead>
+        <tr>
+            <th>Key</th>
+            <th>Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for s in status_items %}
+        <tr>
+            <td>{{ s["key"].rsplit(".", 1)[-1] | humanize }}</td>
+            <td>{{ s["value"] | string | rsplit(".", 1) | last | humanize }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if active_program %}
+{% set program_name = active_program.get("key", "unknown").rsplit(".", 1)[-1] %}
+<h3>Active Program: {{ program_name | humanize }}</h3>
+<table>
+    <tbody>
+        {% for opt in active_program.get("options", []) %}
+        <tr>
+            <td>{{ opt["key"].rsplit(".", 1)[-1] | humanize }}</td>
+            <td>
+                {% if opt.get("unit") == "seconds" and opt["value"] is number %}
+                    {% set h = opt["value"] // 3600 %}
+                    {% set m = (opt["value"] % 3600) // 60 %}
+                    {{ "%dh %dm" | format(h, m) if h else "%dm" | format(m) }}
+                {% elif opt.get("unit") == "%" %}
+                    <progress value="{{ opt['value'] }}" max="100">{{ opt["value"] }}%</progress>
+                {% else %}
+                    {{ opt["value"] }}
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}

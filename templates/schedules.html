@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% set active_page = "schedules" %}
+
+{% block title %}Schedules — HCS{% endblock %}
+
+{% block content %}
+<h1>Schedules</h1>
+
+{% if not connected %}
+<article>
+    <p>You need to authenticate first.</p>
+    <a href="/auth/login" role="button">Connect</a>
+</article>
+{% else %}
+
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Day</th>
+            <th>Time</th>
+            <th>Program</th>
+            <th>Enabled</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody id="schedule-body">
+        {% for s in schedules %}
+        {% include "fragments/schedule_row.html" %}
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if not schedules %}
+<p id="no-schedules">No schedules configured yet.</p>
+{% endif %}
+
+<details>
+    <summary role="button" class="outline">Add Schedule</summary>
+    <form hx-post="/schedules"
+          hx-target="#schedule-body"
+          hx-swap="beforeend"
+          hx-on::after-request="if(event.detail.successful) this.reset()">
+        <div class="grid">
+            <label>
+                Name
+                <input type="text" name="name" required>
+            </label>
+            <label>
+                Day
+                <select name="day" required>
+                    {% for d in days %}
+                    <option value="{{ d.value }}">{{ d.value | upper }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                Time
+                <input type="time" name="time" required>
+            </label>
+        </div>
+        <label>
+            Program
+            {% if programs %}
+            <select name="program" required>
+                {% for p in programs %}
+                <option value="{{ p['key'] }}">{{ p["key"].split(".")[-1] }}</option>
+                {% endfor %}
+            </select>
+            {% else %}
+            <input type="text" name="program" placeholder="e.g. Dishcare.Program.Auto2" required>
+            {% endif %}
+        </label>
+        <button type="submit">Add Schedule</button>
+    </form>
+</details>
+{% endif %}
+{% endblock %}

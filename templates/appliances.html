@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% set active_page = "appliances" %}
+
+{% block title %}Appliances — HCS{% endblock %}
+
+{% block content %}
+<h1>Appliances</h1>
+
+{% if not connected %}
+<article>
+    <p>You need to authenticate first.</p>
+    <a href="/auth/login" role="button">Connect</a>
+</article>
+{% else %}
+<div id="appliance-list">
+    {% include "fragments/appliance_list.html" %}
+</div>
+{% endif %}
+{% endblock %}
