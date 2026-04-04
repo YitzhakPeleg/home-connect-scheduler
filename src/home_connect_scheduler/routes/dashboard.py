@@ -4,6 +4,7 @@ from typing import Any
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
+from loguru import logger
 
 from home_connect_scheduler.homeconnect import HomeConnectClient
 from home_connect_scheduler.store import load
@@ -32,8 +33,9 @@ async def api_status(request: Request) -> HTMLResponse:
         active_program: dict[str, Any] | None = (
             resp.json().get("data") if resp.status_code == 200 else None
         )
-    except Exception:
-        return HTMLResponse("<p>Failed to fetch appliance status.</p>")
+    except Exception as exc:
+        logger.error("Failed to fetch appliance status: {}", exc)
+        return HTMLResponse(f"<p>Failed to fetch appliance status: {exc}</p>")
     finally:
         await client.close()
 
