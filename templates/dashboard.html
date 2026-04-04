@@ -29,7 +29,8 @@
 </div>
 
 {% if selected_appliance %}
-<article id="status-card" hx-get="/api/status" hx-trigger="load, every 120s" hx-swap="innerHTML">
+<button class="outline" hx-get="/api/status" hx-target="#status-card" hx-swap="innerHTML">Refresh Status</button>
+<article id="status-card" hx-get="/api/status" hx-trigger="load, every 300s" hx-swap="innerHTML">
     <p aria-busy="true">Loading status...</p>
 </article>
 {% endif %}
