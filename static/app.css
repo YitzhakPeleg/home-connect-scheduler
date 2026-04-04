@@ -1,3 +1,4 @@
+/* ── Status dot (nav bar) ── */
 .status-dot {
     display: inline-block;
     width: 12px;
@@ -12,4 +13,295 @@
 
 .status-dot.disconnected {
     background-color: #ff4136;
+}
+
+/* ── Status banner ── */
+.status-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1.25rem;
+    border-radius: var(--pico-border-radius);
+    margin-bottom: 1.5rem;
+    font-weight: 600;
+}
+
+.status-banner.ok {
+    background: #2ecc4018;
+    border: 1px solid #2ecc4040;
+    color: #1a7a28;
+}
+
+.status-banner.warn {
+    background: #ff413618;
+    border: 1px solid #ff413640;
+    color: #b71c1c;
+}
+
+.status-banner .banner-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.status-banner button {
+    margin: 0;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.85rem;
+    width: auto;
+}
+
+/* ── Cards ── */
+.card {
+    background: var(--pico-card-background-color);
+    border: 1px solid var(--pico-muted-border-color);
+    border-radius: var(--pico-border-radius);
+    padding: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.card h3 {
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+    color: var(--pico-muted-color);
+}
+
+/* ── Status badge grid ── */
+.status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.status-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--pico-card-background-color);
+    border: 1px solid var(--pico-muted-border-color);
+    border-radius: var(--pico-border-radius);
+    padding: 0.75rem 1rem;
+}
+
+.status-badge .badge-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.status-badge .badge-content {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.status-badge .badge-label {
+    font-size: 0.75rem;
+    color: var(--pico-muted-color);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.status-badge .badge-value {
+    font-weight: 600;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── Active program card ── */
+.active-program {
+    border-left: 4px solid #3b82f6;
+    margin-bottom: 1.5rem;
+}
+
+.active-program .program-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.active-program .program-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.active-program .program-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.5rem;
+}
+
+.active-program .option-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.active-program .option-label {
+    font-size: 0.75rem;
+    color: var(--pico-muted-color);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.active-program .option-value {
+    font-weight: 600;
+}
+
+.active-program progress {
+    margin: 0;
+}
+
+/* ── Styled schedule table ── */
+.schedule-table {
+    margin-bottom: 1.5rem;
+}
+
+.schedule-table th {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--pico-muted-color);
+    font-weight: 600;
+}
+
+.schedule-table td {
+    vertical-align: middle;
+}
+
+.schedule-table .program-cell {
+    font-weight: 500;
+}
+
+/* ── Run timeline ── */
+.run-timeline {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.run-timeline li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--pico-muted-border-color);
+}
+
+.run-timeline li:last-child {
+    border-bottom: none;
+}
+
+.run-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-top: 0.35rem;
+    flex-shrink: 0;
+}
+
+.run-dot.success {
+    background: #2ecc40;
+}
+
+.run-dot.fail {
+    background: #ff4136;
+}
+
+.run-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.run-info .run-schedule {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.run-info .run-time {
+    font-size: 0.8rem;
+    color: var(--pico-muted-color);
+}
+
+.run-info .run-error {
+    font-size: 0.8rem;
+    color: #ff4136;
+    margin-top: 0.15rem;
+}
+
+/* ── Section headers ── */
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.section-header h2 {
+    margin: 0;
+    font-size: 1.15rem;
+}
+
+.section-header .section-icon {
+    font-size: 1.15rem;
+}
+
+/* ── Empty state ── */
+.empty-state {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--pico-muted-color);
+}
+
+.empty-state .empty-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+/* ── Footer ── */
+footer.container {
+    text-align: center;
+    padding: 1.5rem 0;
+    color: var(--pico-muted-color);
+}
+
+/* ── Dark mode overrides ── */
+@media (prefers-color-scheme: dark) {
+    [data-theme="light"] .status-banner.ok {
+        background: #2ecc4018;
+        border-color: #2ecc4040;
+        color: #2ecc40;
+    }
+
+    [data-theme="light"] .status-banner.warn {
+        background: #ff413618;
+        border-color: #ff413640;
+        color: #ff6b6b;
+    }
+}
+
+[data-theme="dark"] .status-banner.ok {
+    background: #2ecc4012;
+    border-color: #2ecc4030;
+    color: #4ade80;
+}
+
+[data-theme="dark"] .status-banner.warn {
+    background: #ff413612;
+    border-color: #ff413630;
+    color: #ff6b6b;
+}
+
+[data-theme="dark"] .active-program {
+    border-left-color: #60a5fa;
+}
+
+[data-theme="dark"] .run-info .run-error {
+    color: #ff6b6b;
 }

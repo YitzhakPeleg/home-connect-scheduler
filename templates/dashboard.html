@@ -4,8 +4,6 @@
 {% block title %}Dashboard — HCS{% endblock %}
 
 {% block content %}
-<h1>Dashboard</h1>
-
 {% if not connected %}
 <article>
     <header>Not Connected</header>
@@ -13,31 +11,39 @@
     <a href="/auth/login" role="button">Connect Now</a>
 </article>
 {% else %}
-<div class="grid">
-    <article>
-        <header>Connection</header>
-        <p>Authenticated with Home Connect</p>
-    </article>
-    <article>
-        <header>Appliance</header>
+
+{# ── Status banner ── #}
+<div class="status-banner ok">
+    <span class="banner-left">
+        <span class="status-dot connected"></span>
         {% if selected_appliance %}
-        <p>{{ selected_appliance }}</p>
+            Connected to {{ selected_appliance }}
         {% else %}
-        <p>No appliance selected. <a href="/appliances">Select one</a>.</p>
+            Connected — no appliance selected
         {% endif %}
-    </article>
+    </span>
+    {% if selected_appliance %}
+    <button class="outline" hx-get="/api/status" hx-target="#status-card" hx-swap="innerHTML">Refresh</button>
+    {% else %}
+    <a href="/appliances" role="button" class="outline">Select Appliance</a>
+    {% endif %}
 </div>
 
+{# ── Status card (HTMX-loaded) ── #}
 {% if selected_appliance %}
-<button class="outline" hx-get="/api/status" hx-target="#status-card" hx-swap="innerHTML">Refresh Status</button>
-<article id="status-card" hx-get="/api/status" hx-trigger="load, every 300s" hx-swap="innerHTML">
+<div id="status-card" hx-get="/api/status" hx-trigger="load, every 300s" hx-swap="innerHTML">
     <p aria-busy="true">Loading status...</p>
-</article>
+</div>
 {% endif %}
 
-<h2>Upcoming Schedules</h2>
-{% if schedules %}
-<table>
+{# ── Upcoming schedules ── #}
+<div class="section-header">
+    <span class="section-icon">📅</span>
+    <h2>Upcoming Schedules</h2>
+</div>
+{% set enabled_schedules = schedules | selectattr("enabled") | list %}
+{% if enabled_schedules %}
+<table class="schedule-table">
     <thead>
         <tr>
             <th>Name</th>
@@ -47,46 +53,46 @@
         </tr>
     </thead>
     <tbody>
-        {% for s in schedules if s.enabled %}
+        {% for s in enabled_schedules %}
         <tr>
             <td>{{ s.name }}</td>
             <td>{{ s.day.value }}</td>
             <td>{{ s.time }}</td>
-            <td>{{ s.program.split(".")[-1] }}</td>
+            <td class="program-cell">{{ s.program.split(".")[-1] }}</td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
 {% else %}
-<p>No schedules configured. <a href="/schedules">Add one</a>.</p>
+<div class="empty-state">
+    <div class="empty-icon">📋</div>
+    <p>No schedules configured. <a href="/schedules">Add one</a>.</p>
+</div>
 {% endif %}
 
+{# ── Recent runs ── #}
 {% if run_log %}
-<h2>Recent Runs</h2>
-<table>
-    <thead>
-        <tr>
-            <th>Time</th>
-            <th>Schedule</th>
-            <th>Result</th>
-        </tr>
-    </thead>
-    <tbody>
+<div class="section-header">
+    <span class="section-icon">🕐</span>
+    <h2>Recent Activity</h2>
+</div>
+<div class="card">
+    <ul class="run-timeline">
         {% for r in run_log | reverse %}
-        <tr>
-            <td>{{ r.timestamp.strftime("%Y-%m-%d %H:%M") }}</td>
-            <td>{{ r.schedule_name }}</td>
-            <td>
-                {% if r.success %}
-                <ins>Success</ins>
-                {% else %}
-                <del>Failed: {{ r.message }}</del>
+        <li>
+            <span class="run-dot {{ 'success' if r.success else 'fail' }}"></span>
+            <div class="run-info">
+                <span class="run-schedule">{{ r.schedule_name }}</span>
+                <span class="run-time">{{ r.timestamp.strftime("%Y-%m-%d %H:%M") }}</span>
+                {% if not r.success %}
+                <span class="run-error">{{ r.message }}</span>
                 {% endif %}
-            </td>
-        </tr>
+            </div>
+        </li>
         {% endfor %}
-    </tbody>
-</table>
+    </ul>
+</div>
 {% endif %}
+
 {% endif %}
 {% endblock %}
