@@ -74,8 +74,8 @@ def test_programs_list_with_specs():
     assert "Glass" in resp.text
     # Duration, energy, and water from static specs (units in column headers)
     assert "0:35" in resp.text  # Quick45 duration
-    assert "0.7" in resp.text   # Quick45 energy
-    assert "9.0" in resp.text   # Quick45 water
+    assert "0.7" in resp.text  # Quick45 energy
+    assert "9.0" in resp.text  # Quick45 water
     assert "1:45" in resp.text  # Glass duration
     assert "11.0" in resp.text  # Glass water
     # Options should be visible
