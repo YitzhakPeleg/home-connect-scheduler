@@ -23,8 +23,8 @@ def test_dashboard_connected_no_appliance():
     with patch("home_connect_scheduler.webapp.load", return_value=data):
         resp = client.get("/")
     assert resp.status_code == 200
-    assert "Authenticated" in resp.text
-    assert "No appliance selected" in resp.text
+    assert "Connected" in resp.text
+    assert "no appliance selected" in resp.text
 
 
 def test_dashboard_connected_with_appliance():

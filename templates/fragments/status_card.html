@@ -1,30 +1,42 @@
-<h3>Appliance Status</h3>
-<table>
-    <thead>
-        <tr>
-            <th>Key</th>
-            <th>Value</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for s in status_items %}
-        <tr>
-            <td>{{ s["key"].rsplit(".", 1)[-1] | humanize }}</td>
-            <td>{{ s["value"] | string | rsplit(".", 1) | last | humanize }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+{# ── Status badge grid ── #}
+<div class="section-header">
+    <span class="section-icon">📊</span>
+    <h2>Appliance Status</h2>
+</div>
+<div class="status-grid">
+    {% set icons = {
+        "operationstate": "⚡", "doorstate": "🚪", "powerstate": "🔌",
+        "remainingprogramtime": "⏱️", "programprogress": "📈",
+        "temperaturesetpoint": "🌡️", "startinrelative": "⏳",
+        "finishinrelative": "🏁"
+    } %}
+    {% for s in status_items %}
+    {% set key_short = s["key"].rsplit(".", 1)[-1] | lower %}
+    {% set label = s["key"].rsplit(".", 1)[-1] | humanize %}
+    {% set value = s["value"] | string | rsplit(".", 1) | last | humanize %}
+    <div class="status-badge">
+        <span class="badge-icon">{{ icons.get(key_short, "📋") }}</span>
+        <div class="badge-content">
+            <span class="badge-label">{{ label }}</span>
+            <span class="badge-value">{{ value }}</span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
 
+{# ── Active program card ── #}
 {% if active_program %}
 {% set program_name = active_program.get("key", "unknown").rsplit(".", 1)[-1] %}
-<h3>Active Program: {{ program_name | humanize }}</h3>
-<table>
-    <tbody>
+<div class="card active-program">
+    <div class="program-header">
+        <span>▶️</span>
+        <h3 class="program-name">{{ program_name | humanize }}</h3>
+    </div>
+    <div class="program-options">
         {% for opt in active_program.get("options", []) %}
-        <tr>
-            <td>{{ opt["key"].rsplit(".", 1)[-1] | humanize }}</td>
-            <td>
+        <div class="option-item">
+            <span class="option-label">{{ opt["key"].rsplit(".", 1)[-1] | humanize }}</span>
+            <span class="option-value">
                 {% if opt.get("unit") == "seconds" and opt["value"] is number %}
                     {% set h = opt["value"] // 3600 %}
                     {% set m = (opt["value"] % 3600) // 60 %}
@@ -34,9 +46,9 @@
                 {% else %}
                     {{ opt["value"] }}
                 {% endif %}
-            </td>
-        </tr>
+            </span>
+        </div>
         {% endfor %}
-    </tbody>
-</table>
+    </div>
+</div>
 {% endif %}
