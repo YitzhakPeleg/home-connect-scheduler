@@ -9,7 +9,11 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
-from home_connect_scheduler.routes import (
+from home_connect_scheduler.logging_config import setup_logging
+
+setup_logging("web")
+
+from home_connect_scheduler.routes import (  # noqa: E402
     appliances,
     auth,
     dashboard,
@@ -20,8 +24,8 @@ from home_connect_scheduler.routes import (
     schedules,
     settings,
 )
-from home_connect_scheduler.store import load
-from home_connect_scheduler.web_deps import STATIC_DIR, templates
+from home_connect_scheduler.store import load  # noqa: E402
+from home_connect_scheduler.web_deps import STATIC_DIR, templates  # noqa: E402
 
 
 @asynccontextmanager

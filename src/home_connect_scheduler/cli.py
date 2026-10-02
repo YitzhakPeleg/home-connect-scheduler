@@ -1,10 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 import webbrowser
-from datetime import UTC, datetime
-from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -13,6 +10,7 @@ from rich.console import Console
 from rich.table import Table
 
 from home_connect_scheduler.homeconnect import HomeConnectClient
+from home_connect_scheduler.logging_config import setup_logging
 from home_connect_scheduler.models import DayOfWeek, Schedule
 from home_connect_scheduler.store import load, save
 
@@ -21,17 +19,7 @@ schedule_app = typer.Typer(help="Manage schedules")
 app.add_typer(schedule_app, name="schedule")
 console = Console()
 
-
-def _setup_logging() -> None:
-    logger.remove()
-    logger.add(sys.stderr, level="INFO", backtrace=False, diagnose=False)
-    log_dir = Path("logs")
-    log_dir.mkdir(exist_ok=True)
-    timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
-    logger.add(log_dir / f"hcs_{timestamp}.log", level="DEBUG", rotation="10 MB", retention=10)
-
-
-_setup_logging()
+setup_logging("hcs")
 
 
 def _run(coro):

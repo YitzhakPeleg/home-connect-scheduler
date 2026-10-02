@@ -146,7 +146,7 @@ def start_scheduler() -> None:
         sys.exit(1)
 
     ha_id = data.selected_appliance
-    scheduler = BlockingScheduler(misfire_grace_time=300)
+    scheduler = BlockingScheduler(job_defaults={"misfire_grace_time": 300, "coalesce": True})
 
     for sched in data.schedules:
         if not sched.enabled:

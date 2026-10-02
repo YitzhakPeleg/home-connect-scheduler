@@ -45,7 +45,7 @@ def _load_jobs(scheduler: AsyncIOScheduler) -> None:
 
 def start_web_scheduler() -> None:
     global _scheduler
-    _scheduler = AsyncIOScheduler(misfire_grace_time=300)
+    _scheduler = AsyncIOScheduler(job_defaults={"misfire_grace_time": 300, "coalesce": True})
     _load_jobs(_scheduler)
     _scheduler.start()
     logger.info("AsyncIO scheduler started with {} job(s)", len(_scheduler.get_jobs()))
