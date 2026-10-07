@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import logging
 import sys
 from datetime import UTC, datetime
@@ -17,8 +18,9 @@ class _InterceptHandler(logging.Handler):
         except ValueError:
             level = record.levelno
 
-        frame, depth = logging.currentframe(), 2
-        while frame and frame.f_code.co_filename == logging.__file__:
+        # Walk past emit() and the stdlib logging frames to find the real caller.
+        frame, depth = inspect.currentframe(), 0
+        while frame and (depth == 0 or frame.f_code.co_filename == logging.__file__):
             frame = frame.f_back
             depth += 1
 

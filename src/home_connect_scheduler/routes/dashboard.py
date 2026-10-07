@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from loguru import logger
@@ -34,6 +35,14 @@ async def api_status(request: Request) -> HTMLResponse:
             active_program = resp.json().get("data")
         except Exception:
             pass
+    except httpx.HTTPStatusError as exc:
+        # The API explains failures (e.g. 409 "HomeAppliance is offline") in the body
+        try:
+            reason = exc.response.json()["error"]["description"]
+        except (ValueError, KeyError, TypeError):
+            reason = str(exc)
+        logger.warning("Failed to fetch appliance status: {}", reason)
+        return HTMLResponse(f"<p>Appliance unavailable: {reason}</p>")
     except Exception as exc:
         logger.error("Failed to fetch appliance status: {}", exc)
         return HTMLResponse(f"<p>Failed to fetch appliance status: {exc}</p>")
